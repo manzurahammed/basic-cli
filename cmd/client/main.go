@@ -7,22 +7,24 @@ import (
 
 	"github.com/manzurahammed/rm-cli/client"
 )
+
 var (
-	backendAPIURL = flag.String("backend","http://localhost:9000","Bacakend Url")
-	helpFlag = flag.Bool("help",false,"Help Flag")
+	backendURIFlag = flag.String("backend", "http://localhost:8080", "Backend API URI")
+	helpFlag       = flag.Bool("help", false, "Display a helpful message")
 )
 
-func main(){
+func main() {
 	flag.Parse()
-	s := client.NewSwitch(*backendAPIURL)
-	if * helpFlag || len(os.Args)==1 {
-		s.Help()
-		return 
-	}
-	err := s.Switch()
+	s := client.NewSwitch(*backendURIFlag)
 
-	if err!=nil {
-		fmt.Println("Error found")
+	if *helpFlag || len(os.Args) == 1 {
+		s.Help()
+		return
+	}
+
+	err := s.Switch()
+	if err != nil {
+		fmt.Printf("cmd switch error: %v\n", err)
 		os.Exit(2)
 	}
 }

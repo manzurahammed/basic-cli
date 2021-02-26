@@ -1,9 +1,8 @@
 package client
 
-import (
-	"fmt"	
-)
+import "fmt"
 
-func wrapeError(customError string, orginalError error) error {
-	return fmt.Errorf("%s %v", customError, orginalError)
+// wrapError wraps a plain error into a custom error
+func wrapError(customMsg string, originalErr error) error {
+	return fmt.Errorf("%s: %v", customMsg, originalErr)
 }

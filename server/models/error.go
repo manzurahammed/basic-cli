@@ -1,14 +1,17 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+)
 
+// HTTPError represents an http error to be returned to the client
 type HTTPError struct {
 	Code    int    `json:"-"`
 	Type    string `json:"type"`
 	Message string `json:"message"`
 }
 
-func(e HTTPError) error() string{
+func (e HTTPError) Error() string {
 	return e.Message
 }
 
@@ -46,13 +49,14 @@ type NotFoundError struct {
 	Message string
 }
 
-func (e NotFoundError) error() string {
-	if e.Message ==""{
+func (e NotFoundError) Error() string {
+	if e.Message == "" {
 		return "resource not found"
 	}
 	return e.Message
 }
 
+// WrapError wraps a plain error into a custom error
 func WrapError(customErr string, originalErr error) error {
 	err := fmt.Errorf("%s: %v", customErr, originalErr)
 	return err

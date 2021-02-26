@@ -3,42 +3,44 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
 	"net/http"
+	"strings"
 	"time"
-	"fmt"
 )
 
-// reminderBody represents the HTTP client which communicates with reminders backend API
+// reminderBody represents reminder request body
 type reminderBody struct {
-	ID string `json:"id"`
-	Title string `json:"title"`
-	Message string `json:"message"`
+	ID       string        `json:"id"`
+	Title    string        `json:"title"`
+	Message  string        `json:"message"`
 	Duration time.Duration `json:"duration"`
 }
 
 // HTTPClient represents the HTTP client which communicates with reminders backend API
 type HTTPClient struct {
-	client *http.Client
+	client     *http.Client
 	BackendURI string
 }
 
+// NewHTTPClient creates a new instance of HTTPClient
 func NewHTTPClient(uri string) HTTPClient {
 	return HTTPClient{
-		client: &http.Client{},
-		BackendURI:uri,
+		BackendURI: uri,
+		client:     &http.Client{},
 	}
 }
 
-func (h HTTPClient) Create(title, message string, duration time.Duration) ([]byte,error){
+// Create calls the create API endpoint
+func (c HTTPClient) Create(title, message string, duration time.Duration) ([]byte, error) {
 	requestBody := reminderBody{
-		Title: title,
-		Message: message,
+		Title:    title,
+		Message:  message,
 		Duration: duration,
 	}
-	return h.apiCall(
+	return c.apiCall(
 		http.MethodPost,
 		"/reminders",
 		&requestBody,
@@ -46,77 +48,78 @@ func (h HTTPClient) Create(title, message string, duration time.Duration) ([]byt
 	)
 }
 
-func (h HTTPClient) Edit(id, title, message string, duration time.Duration) ([]byte,error){
+// Edit calls the edit API endpoint
+func (c HTTPClient) Edit(id string, title, message string, duration time.Duration) ([]byte, error) {
 	requestBody := reminderBody{
-		ID:id,
-		Title: title,
-		Message: message,
+		ID:       id,
+		Title:    title,
+		Message:  message,
 		Duration: duration,
 	}
-	return h.apiCall(
+	return c.apiCall(
 		http.MethodPatch,
-		"/reminders"+id,
+		"/reminders/"+id,
 		&requestBody,
 		http.StatusOK,
 	)
 }
 
-func (h HTTPClient) Fetch(ids []string) ([]byte,error){
-	idsSet := strings.Join(ids,",")
-	return h.apiCall(
+// Fetch calls the fetch API endpoint
+func (c HTTPClient) Fetch(ids []string) ([]byte, error) {
+	idsSet := strings.Join(ids, ",")
+	return c.apiCall(
 		http.MethodGet,
-		"/reminders"+idsSet,
+		"/reminders/"+idsSet,
 		nil,
 		http.StatusOK,
 	)
 }
 
-func (h HTTPClient) Delete(ids []string) ( error){
-	idsSet := strings.Join(ids,",")
-	_,err := h.apiCall(
+// Delete calls the delete API endpoint
+func (c HTTPClient) Delete(ids []string) error {
+	idsSet := strings.Join(ids, ",")
+	_, err := c.apiCall(
 		http.MethodDelete,
-		"/reminders"+idsSet,
+		"/reminders/"+idsSet,
 		nil,
 		http.StatusNoContent,
 	)
 	return err
 }
 
-func (h HTTPClient) Health(host string) ( bool){
-	res, err := http.Get(host+"/health")
-	if err  !=nil || res.StatusCode != http.StatusOK{
+// Healthy checks whether a given host is up and running
+func (c HTTPClient) Healthy(host string) bool {
+	res, err := http.Get(host + "/health")
+	if err != nil || res.StatusCode != http.StatusOK {
 		return false
 	}
 	return true
 }
 
-func (h HTTPClient) apiCall(method, path string, requestBody interface{},resCode int) ([]byte,error){
-	bs, err := json.Marshal(requestBody)
-	if err!=nil {
-		e := wrapeError("could not marshal request body", err)
+// apiCall makes a new backend api call
+func (c HTTPClient) apiCall(method, path string, body interface{}, resCode int) ([]byte, error) {
+	bs, err := json.Marshal(body)
+	if err != nil {
+		e := wrapError("could not marshal request body", err)
 		return nil, e
 	}
-
-	req, err := http.NewRequest(method, h.BackendURI+path,bytes.NewReader(bs))
-
+	req, err := http.NewRequest(method, c.BackendURI+path, bytes.NewReader(bs))
 	if err != nil {
-		e := wrapeError("could not create request", err)
+		e := wrapError("could not create request", err)
 		return []byte{}, e
 	}
 
-	res, err := h.client.Do(req)
-
+	res, err := c.client.Do(req)
 	if err != nil {
-		e := wrapeError("could not make api request", err)
+		e := wrapError("could not make http call", err)
 		return []byte{}, e
 	}
 
-	resBody, err := h.readResBody(res.Body)
+	resBody, err := c.readResBody(res.Body)
 	if err != nil {
 		return []byte{}, err
 	}
-
-	if res.StatusCode !=resCode {
+	if res.StatusCode != resCode {
 		if len(resBody) > 0 {
 			fmt.Printf("got this response body:\n%s\n", resBody)
 		}
@@ -127,24 +130,24 @@ func (h HTTPClient) apiCall(method, path string, requestBody interface{},resCode
 		)
 	}
 
-	return []byte(resBody), nil
+	return []byte(resBody), err
 }
 
-func (h HTTPClient) readResBody(b io.Reader) (string, error){
-	res, err := ioutil.ReadAll(b)
+// readBody reads response body
+func (c HTTPClient) readResBody(b io.Reader) (string, error) {
+	bs, err := ioutil.ReadAll(b)
 	if err != nil {
-		return "", wrapeError("could not read response body", err)
+		return "", wrapError("could not read response body", err)
 	}
 
-	if len(res) == 0 {
+	if len(bs) == 0 {
 		return "", nil
 	}
 
 	var buff bytes.Buffer
-	
-	if  err := json.Indent(&buff,res,"","\t"); err !=nil{
-		return "", wrapeError("could not indent json", err)
+	if err := json.Indent(&buff, bs, "", "\t"); err != nil {
+		return "", wrapError("could not indent json", err)
 	}
 
-	return buff.String(),nil
+	return buff.String(), nil
 }

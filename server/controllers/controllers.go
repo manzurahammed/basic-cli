@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/manzurahammed/rm-cli/server/models"
-	"golang.org/x/tools/go/analysis/passes/nilfunc"
 )
 
-func ctxParam(ctx context.Context, key string) urlParam  {
+// ctx param fetches param from context
+func ctxParam(ctx context.Context, key string) urlParam {
 	ps, ok := ctx.Value(ctxKey(paramsKey)).(map[string]urlParam)
 	if !ok {
 		return urlParam{}
@@ -18,27 +18,32 @@ func ctxParam(ctx context.Context, key string) urlParam  {
 	return ps[key]
 }
 
-func parseIDParam(ctx context.Context) (int, error){
-	id, err := strconv.Atoi(ctxParam(ctx,idParamName ).value)
-	if err!=nil {
+// parseIDParam parses id url param
+func parseIDParam(ctx context.Context) (int, error) {
+	id, err := strconv.Atoi(ctxParam(ctx, idParamName).value)
+	if err != nil {
 		return 0, models.DataValidationError{Message: "invalid id provided"}
 	}
-	return id,nil
+	return id, nil
 }
 
-func parseIDsParam(ctx context.Context) ([]int, error){
-	idsParam := strings.Split(ctxParam(ctx,idsParamName).value,",")
+// parseIDParam parses ids url param
+func parseIDsParam(ctx context.Context) ([]int, error) {
+	idsSlice := strings.Split(ctxParam(ctx, idsParamName).value, ",")
 	var res []int
-	var Invalid []int
-	for _,id := range idsParam{
-		n,err := strconv.Atoi(id)
-		if err!=nil {
-			Invalid = append(Invalid,n)
+	var invalid []int
+	for _, id := range idsSlice {
+		n, err := strconv.Atoi(id)
+		if err != nil {
+			invalid = append(invalid, n)
 		}
-		res = append(res,n)
+		res = append(res, n)
 	}
-	if len(Invalid)>0 {
-		return []int{},models.DataValidationError{Message: fmt.Sprintf("invalid ids, %v",Invalid)}
+	if len(invalid) > 0 {
+		err := models.DataValidationError{
+			Message: fmt.Sprintf("invalid ids provided: %v", invalid),
+		}
+		return []int{}, err
 	}
-	return  res,nil
+	return res, nil
 }
